@@ -11,7 +11,7 @@
   "homepage": "https://github.com/jvilk/BrowserFS",
   "author": "John Vilk <jvilk@cs.umass.edu> (http://people.cs.umass.edu/~jvilk)",
   "license": "MIT",
-  "main": "dist/browserfs.js",
+  "module": "dist/browserfs.mjs",
   "devDependencies": {},
   "scripts": {},
   "dependencies": {
