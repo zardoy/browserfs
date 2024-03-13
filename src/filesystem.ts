@@ -345,7 +345,7 @@ export class BaseFileSystem extends FileSystem {
 	public async createFile(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<File> {
 		throw new ApiError(ErrorCode.ENOTSUP);
 	}
-	public async open(p: string, flag: FileFlag, mode: number, cred: Cred): Promise<File> {
+	public async open(p: string, flag: FileFlag, mode: number, cred: Cred, callback): Promise<File> {
 		try {
 			const stats = await this.stat(p, cred);
 			switch (flag.pathExistsAction()) {
@@ -361,9 +361,14 @@ export class BaseFileSystem extends FileSystem {
 
 					await fd.truncate(0);
 					await fd.sync();
+					callback?.(null, fd);
 					return fd;
 				case ActionType.NOP:
-					return this.openFile(p, flag, cred);
+					const r = this.openFile(p, flag, cred);
+					r.then(r => {
+						callback?.(null, r);
+					});
+					return r;
 				default:
 					throw new ApiError(ErrorCode.EINVAL, 'Invalid FileFlag object.');
 			}
@@ -377,7 +382,11 @@ export class BaseFileSystem extends FileSystem {
 					if (parentStats && !parentStats.isDirectory()) {
 						throw ApiError.ENOTDIR(path.dirname(p));
 					}
-					return this.createFile(p, flag, mode, cred);
+					const file = this.createFile(p, flag, mode, cred);
+					file.then(file => {
+						callback?.(null, file);
+					});
+					return file;
 				case ActionType.THROW_EXCEPTION:
 					throw ApiError.ENOENT(p);
 				default:
@@ -486,9 +495,10 @@ export class BaseFileSystem extends FileSystem {
 	public readdirSync(p: string, cred: Cred): string[] {
 		throw new ApiError(ErrorCode.ENOTSUP);
 	}
-	public async exists(p: string, cred: Cred): Promise<boolean> {
+	public async exists(p: string, cred: Cred, callback): Promise<boolean> {
 		try {
 			await this.stat(p, cred);
+			callback?.(null, true);
 			return true;
 		} catch (e) {
 			return false;
@@ -502,7 +512,7 @@ export class BaseFileSystem extends FileSystem {
 			return false;
 		}
 	}
-	public async realpath(p: string, cred: Cred): Promise<string> {
+	public async realpath(p: string, cred: Cred, callback): Promise<string> {
 		if (this.metadata.supportsLinks) {
 			// The path could contain symlinks. Split up the path,
 			// resolve any symlinks, return the resolved string.
@@ -518,6 +528,7 @@ export class BaseFileSystem extends FileSystem {
 			if (!(await this.exists(p, cred))) {
 				throw ApiError.ENOENT(p);
 			}
+			callback?.(null, p);
 			return p;
 		}
 	}
@@ -541,10 +552,11 @@ export class BaseFileSystem extends FileSystem {
 			}
 		}
 	}
-	public async truncate(p: string, len: number, cred: Cred): Promise<void> {
+	public async truncate(p: string, len: number, cred: Cred, callback): Promise<void> {
 		const fd = await this.open(p, FileFlag.getFileFlag('r+'), 0o644, cred);
 		try {
 			await fd.truncate(len);
+			callback?.(null);
 		} finally {
 			await fd.close();
 		}
@@ -558,7 +570,7 @@ export class BaseFileSystem extends FileSystem {
 			fd.closeSync();
 		}
 	}
-	public async readFile(fname: string, encoding: BufferEncoding | null, flag: FileFlag, cred: Cred): Promise<FileContents> {
+	public async readFile(fname: string, encoding: BufferEncoding | null, flag: FileFlag, cred: Cred, callback): Promise<FileContents> {
 		// Get file.
 		const fd = await this.open(fname, flag, 0o644, cred);
 		try {
@@ -567,6 +579,7 @@ export class BaseFileSystem extends FileSystem {
 			const buf = Buffer.alloc(stat.size);
 			await fd.read(buf, 0, stat.size, 0);
 			await fd.close();
+			callback?.(null, encoding === null ? buf : buf.toString(encoding));
 			if (encoding === null) {
 				return buf;
 			}
@@ -592,7 +605,7 @@ export class BaseFileSystem extends FileSystem {
 			fd.closeSync();
 		}
 	}
-	public async writeFile(fname: string, data: FileContents, encoding: BufferEncoding | null, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
+	public async writeFile(fname: string, data: FileContents, encoding: BufferEncoding | null, flag: FileFlag, mode: number, cred: Cred, callback): Promise<void> {
 		// Get file.
 		const fd = await this.open(fname, flag, mode, cred);
 		try {
@@ -601,6 +614,7 @@ export class BaseFileSystem extends FileSystem {
 			}
 			// Write into file.
 			await fd.write(data, 0, data.length, 0);
+			callback?.(null);
 		} finally {
 			await fd.close();
 		}
@@ -618,13 +632,14 @@ export class BaseFileSystem extends FileSystem {
 			fd.closeSync();
 		}
 	}
-	public async appendFile(fname: string, data: FileContents, encoding: BufferEncoding | null, flag: FileFlag, mode: number, cred: Cred): Promise<void> {
+	public async appendFile(fname: string, data: FileContents, encoding: BufferEncoding | null, flag: FileFlag, mode: number, cred: Cred, callback): Promise<void> {
 		const fd = await this.open(fname, flag, mode, cred);
 		try {
 			if (typeof data === 'string') {
 				data = Buffer.from(data, encoding!);
 			}
 			await fd.write(data, 0, data.length, null);
+			callback?.(null);
 		} finally {
 			await fd.close();
 		}

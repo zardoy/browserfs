@@ -140,6 +140,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		return parts.join('/');
 	}
 
+	async _syncFile(path, data, callback) {
 		if (this.isReadonly) {
 			console.log('[google drive] Skipping saving file because in read only mode', path);
 			return;
@@ -210,7 +211,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		}
 	}
 
-	async openFile(path: string, _flags: FileFlag, _cred: Cred) {
+	async openFile(path: string, _flags: FileFlag, _cred: Cred, callback) {
 		try {
 			const fileId = await this._getFileId(path);
 			const res = await gapi.client.drive.files.get({
@@ -224,13 +225,15 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 				view[i] = body.charCodeAt(i);
 			}
 			const buffer = Buffer.from(arrayBuffer);
-			return new GoogleDriveFile(this, path, _flags, new Stats(FileType.FILE, buffer.length), buffer);
+			const file = new GoogleDriveFile(this, path, _flags, new Stats(FileType.FILE, buffer.length), buffer);
+			callback?.(null, file);
+			return file;
 		} catch (err) {
 			throw this._processError(err);
 		}
 	}
 
-	async stat(path: string) {
+	async stat(path: string, falseVar, cred, callback) {
 		// todo test deleted
 		try {
 			// todo quick this.dirFilesMap[path] discovery
@@ -239,18 +242,20 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			const file = this.dirFilesMap[parentPath].files[path.split('/').pop()];
 			const isDir = file.mimeType === 'application/vnd.google-apps.folder';
 			const fileType = isDir ? FileType.DIRECTORY : FileType.FILE;
-			return new Stats(
+			const stats = new Stats(
 				fileType,
 				file.size ? +file.size : 4096,
 				file.modifiedTime && new Date(file.modifiedTime).valueOf(),
 				file.createdTime && new Date(file.createdTime).valueOf()
 			);
+			callback?.(null, stats);
+			return stats;
 		} catch (err) {
 			throw this._processError(err);
 		}
 	}
 
-	async rename(oldPath: string, newPath: string) {
+	async rename(oldPath: string, newPath: string, callback) {
 		try {
 			const fileId = await this._getFileId(oldPath);
 			const oldName = oldPath.split('/').pop();
@@ -266,6 +271,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			delete map.files[oldName];
 			map.files[newName] = file;
 			file.name = newName;
+			callback?.(null);
 		} catch (err) {
 			throw this._processError(err);
 		}

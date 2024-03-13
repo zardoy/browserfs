@@ -44,7 +44,8 @@
 		"prepublishOnly": "npm run build",
 		"build:docs": "typedoc --out docs --name BrowserFS src/index.ts",
 		"format:check": "prettier --check src test",
-		"format": "prettier --write src test"
+		"format": "prettier --write src test",
+		"bundle-drive": "esbuild --bundle src/backends/GoogleDrive.ts --platform=browser --format=esm --target=esnext --keep-names --outfile=googledrive.bundle.js"
 	},
 	"devDependencies": {
 		"@jest/globals": "^29.5.0",

@@ -1,9 +1,9 @@
 import { BaseFile, File } from '../file';
-import { FileSystem } from '../filesystem';
+import type { FileSystem } from '../filesystem';
 import { Stats } from '../stats';
 import { FileFlag } from '../file';
 import { ApiError, ErrorCode } from '../ApiError';
-import { getMount } from '../emulation/shared';
+// import { getMount } from '../emulation/shared';
 import { Buffer } from 'buffer';
 
 /**
@@ -213,8 +213,10 @@ export default class PreloadFile<T extends FileSystem> extends BaseFile {
 	 * @param [Function(BrowserFS.ApiError, Number, BrowserFS.node.Buffer)]
 	 *   cb The number specifies the number of bytes written into the file.
 	 */
-	public async write(buffer: Buffer, offset: number, length: number, position: number): Promise<number> {
-		return this.writeSync(buffer, offset, length, position);
+	public async write(buffer: Buffer, offset: number, length: number, position: number, callback): Promise<number> {
+		const r = this.writeSync(buffer, offset, length, position);
+		callback?.(null, r, buffer);
+		return r;
 	}
 
 	/**
@@ -271,8 +273,10 @@ export default class PreloadFile<T extends FileSystem> extends BaseFile {
 	 * @param [Function(BrowserFS.ApiError, Number, BrowserFS.node.Buffer)] cb The
 	 *   number is the number of bytes read
 	 */
-	public async read(buffer: Buffer, offset: number, length: number, position: number): Promise<{ bytesRead: number; buffer: Buffer }> {
-		return { bytesRead: this.readSync(buffer, offset, length, position), buffer };
+	public async read(buffer: Buffer, offset: number, length: number, position: number, callback): Promise<{ bytesRead: number; buffer: Buffer }> {
+		const result = { bytesRead: this.readSync(buffer, offset, length, position), buffer };
+		callback?.(null, result.bytesRead, result.buffer);
+		return result;
 	}
 
 	/**
