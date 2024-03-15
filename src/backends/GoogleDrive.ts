@@ -36,7 +36,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	public static readonly Options: BackendOptions = {};
 
 	public static isAvailable(): boolean {
-		// Checks if the Dropbox library is loaded.
+		// Checks if the Google Drive API is loaded.
 		return typeof globalThis.gapi?.client?.drive !== 'undefined';
 	}
 
@@ -298,7 +298,5 @@ export class GoogleDriveFile extends PreloadFile<GoogleDriveFileSystem> implemen
 		await this._fs._syncFile(this.getPath(), this.getBuffer());
 	}
 
-	public async close(): Promise<void> {
-		await this.sync();
-	}
+	public async close(): Promise<void> {}
 }
