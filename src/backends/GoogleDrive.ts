@@ -85,6 +85,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	}
 
 	async readdir(path: string, cred: any, optionsOrCallback = {} as any, internalCall = false) {
+		console.debug('readdir', path);
 		if (!internalCall) {
 			this._readdirTimes = 0;
 		}
@@ -142,10 +143,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 
 	async _syncFile(path, data, callback) {
 		if (this.isReadonly) {
-			console.log('[google drive] Skipping saving file because in read only mode', path);
+			console.debug('[google drive] Skipping saving file because in read only mode', path);
+			// console.trace();
 			return;
 		} else {
-			console.log('[google drive] Saving file', path);
+			console.debug('[google drive] Saving file', path);
 		}
 		try {
 			const name = path.split('/').pop();
@@ -214,6 +216,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	async openFile(path: string, _flags: FileFlag, _cred: Cred, callback) {
 		try {
 			const fileId = await this._getFileId(path);
+			console.debug('reading file', path);
 			const res = await gapi.client.drive.files.get({
 				fileId: fileId,
 				alt: 'media',
