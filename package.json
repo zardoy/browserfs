@@ -30,13 +30,6 @@
 	"engines": {
 		"node": ">= 18"
 	},
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"require": "./dist/browserfs.min.cjs",
-			"import": "./dist/browserfs.min.mjs"
-		}
-	},
 	"scripts": {
 		"lint": "eslint src test/**/*.test.ts",
 		"build": "rm -rf dist/* && node scripts/build.mjs",
