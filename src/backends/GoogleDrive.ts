@@ -191,8 +191,37 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		}
 	}
 
-	async mkdir(path) {
-		throw new Error('Not implemented');
+	async mkdir(path, mode, cred, callback) {
+		try {
+			if (this.isReadonly) {
+				console.debug('[google drive] Skipping creating directory because in read only mode', path);
+			} else {
+				console.debug('[google drive] creating directory', path);
+				const parentId = await this._getFileId(this._getParentPath(path));
+				const res = await gapi.client.drive.files.create({
+					mimeType: 'application/vnd.google-apps.folder',
+					name: path.split('/').pop(),
+					parents: [parentId],
+					// fields: "id",
+				} as any);
+				const fileId = res.result.id;
+			}
+			const map = this.dirFilesMap[this._getParentPath(path)];
+			map.files[path.split('/').pop()] = {
+				id: 'todo',
+				name: path.split('/').pop(),
+				mimeType: 'application/vnd.google-apps.folder',
+				modifiedTime: new Date().toISOString(),
+				createdTime: new Date().toISOString(),
+				size: 0,
+			};
+			this.dirFilesMap[path] = {
+				files: {},
+			};
+			callback?.();
+		} catch (err) {
+			throw this._processError(err);
+		}
 	}
 
 	async rmdir(path) {
