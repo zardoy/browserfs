@@ -40,11 +40,8 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		return typeof globalThis.gapi?.client?.drive !== 'undefined';
 	}
 
-	private _client: DropboxTypes.Dropbox;
-
-	public constructor(client: DropboxTypes.Dropbox) {
+	public constructor() {
 		super();
-		this._client = client;
 	}
 
 	public get metadata(): FileSystemMetadata {
