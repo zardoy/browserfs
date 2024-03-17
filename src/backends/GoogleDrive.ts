@@ -152,26 +152,26 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			console.debug('[google drive] Skipping saving file because already saving', path);
 			return;
 		}
-		this.savingFiles.push(path);
-		let fileExists = true;
 		try {
-			await this._getFileId(path);
-		} catch (err) {
-			fileExists = false;
-		}
-		// skip empty data (wipe file)
-		if (fileExists && data.length === 0) {
-			console.debug('[google drive] Skipping saving file because empty', path);
-			return;
-		}
-		if (this.isReadonly) {
-			console.debug('[google drive] Skipping saving file because in read only mode', path);
-			// console.trace();
-			return;
-		} else {
-			console.debug('[google drive] Saving file', path);
-		}
-		try {
+			this.savingFiles.push(path);
+			let fileExists = true;
+			try {
+				await this._getFileId(path);
+			} catch (err) {
+				fileExists = false;
+			}
+			// skip empty data (wipe file)
+			if (fileExists && data.length === 0) {
+				console.debug('[google drive] Skipping saving file because empty', path);
+				return;
+			}
+			if (this.isReadonly) {
+				console.debug('[google drive] Skipping saving file because in read only mode', path);
+				// console.trace();
+				return;
+			} else {
+				console.debug('[google drive] Saving file', path);
+			}
 			const name = path.split('/').pop();
 
 			let fileId = await this._getFileId(path, false);
