@@ -139,6 +139,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	}
 
 	async _syncFile(path, data, callback) {
+		// skip empty data (wipe file)
+		if (data.length === 0) {
+			console.debug('[google drive] Skipping saving file because empty', path);
+			return;
+		}
 		if (this.isReadonly) {
 			console.debug('[google drive] Skipping saving file because in read only mode', path);
 			// console.trace();
@@ -333,7 +338,13 @@ export class GoogleDriveFile extends PreloadFile<GoogleDriveFileSystem> implemen
 	size: number;
 
 	public async sync(): Promise<void> {
+		if (!this.isDirty()) {
+			return;
+		}
+
 		await this._fs._syncFile(this.getPath(), this.getBuffer());
+
+		this.resetDirty();
 	}
 
 	public async close(): Promise<void> {}
