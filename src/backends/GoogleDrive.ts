@@ -182,6 +182,15 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 				},
 				body: file,
 			});
+			const map = this.dirFilesMap[this._getParentPath(path)];
+			map.files[path.split('/').pop()] = {
+				id: fileId,
+				name,
+				mimeType: 'application/octet-stream',
+				modifiedTime: new Date().toISOString(),
+				createdTime: new Date().toISOString(),
+				size: data.length,
+			};
 			if (!res.ok) throw new Error('Failed to upload file');
 		} catch (err) {
 			throw this._processError(err);
