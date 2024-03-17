@@ -571,21 +571,30 @@ export class BaseFileSystem extends FileSystem {
 		}
 	}
 	public async readFile(fname: string, encoding: BufferEncoding | null, flag: FileFlag, cred: Cred, callback): Promise<FileContents> {
-		// Get file.
-		const fd = await this.open(fname, flag, 0o644, cred);
 		try {
-			const stat = await fd.stat();
-			// Allocate buffer.
-			const buf = Buffer.alloc(stat.size);
-			await fd.read(buf, 0, stat.size, 0);
-			await fd.close();
-			callback?.(null, encoding === null ? buf : buf.toString(encoding));
-			if (encoding === null) {
-				return buf;
+			// Get file.
+			const fd = await this.open(fname, flag, 0o644, cred);
+			try {
+				const stat = await fd.stat();
+				// Allocate buffer.
+				const buf = Buffer.alloc(stat.size);
+				await fd.read(buf, 0, stat.size, 0);
+				await fd.close();
+				callback?.(null, encoding === null ? buf : buf.toString(encoding));
+				if (encoding === null) {
+					return buf;
+				}
+				return buf.toString(encoding);
+			} finally {
+				await fd.close();
 			}
-			return buf.toString(encoding);
-		} finally {
-			await fd.close();
+		} catch (err) {
+			if (callback) {
+				callback(err);
+				return null;
+			} else {
+				throw err;
+			}
 		}
 	}
 	public readFileSync(fname: string, encoding: BufferEncoding | null, flag: FileFlag, cred: Cred): FileContents {

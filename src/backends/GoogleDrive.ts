@@ -57,8 +57,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	_readdirTimes = 0;
 	isReadonly = false;
 
+	_isRoot(path: string) {
+		return path === '/' || path === '';
+	}
 	_getExistingFileId(path: string) {
-		if (path === '/' || path === '') {
+		if (this._isRoot(path)) {
 			return 'root';
 		}
 		const parentPath = this._getParentPath(path);
@@ -73,7 +76,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		if (id === null) {
 			const parentPath = this._getParentPath(path);
 			await this.readdir(parentPath, null, { withFileTypes: true }, true);
-			return this._getExistingFileId(path);
+			return this._isRoot(parentPath) ? this._getExistingFileId(path) : this._getFileId(path, throwIfNotFound);
 		}
 		if (id === undefined && throwIfNotFound) {
 			throw ApiError.ENOENT(path);
@@ -128,6 +131,9 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			}
 			return mapped;
 		} catch (err) {
+			if (typeof optionsOrCallback === 'function') {
+				optionsOrCallback(this._processError(err));
+			}
 			throw this._processError(err);
 		}
 	}
@@ -203,7 +209,13 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	}
 
 	async mkdir(path, mode, cred, callback) {
+		const fileId = await this._getFileId(path, false);
+		if (fileId) {
+			callback?.();
+			return;
+		}
 		try {
+			let fileId = 'virtual';
 			if (this.isReadonly) {
 				console.debug('[google drive] Skipping creating directory because in read only mode', path);
 			} else {
@@ -215,11 +227,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 					parents: [parentId],
 					// fields: "id",
 				} as any);
-				const fileId = res.result.id;
+				fileId = res.result.id;
 			}
 			const map = this.dirFilesMap[this._getParentPath(path)];
 			map.files[path.split('/').pop()] = {
-				id: 'todo',
+				id: fileId,
 				name: path.split('/').pop(),
 				mimeType: 'application/vnd.google-apps.folder',
 				modifiedTime: new Date().toISOString(),
@@ -231,7 +243,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			};
 			callback?.();
 		} catch (err) {
-			throw this._processError(err);
+			if (callback) {
+				callback?.(this._processError(err));
+			} else {
+				throw this._processError(err);
+			}
 		}
 	}
 
@@ -249,7 +265,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			await this._syncFile(p, fileData);
 			return new GoogleDriveFile(this, p, _flags, new Stats(FileType.FILE, 0, 0o644, Date.now(), Date.now()), fileData);
 		} catch (err) {
-			throw this._processError(err);
+			if (callback) {
+				callback?.(this._processError(err));
+			} else {
+				throw this._processError(err);
+			}
 		}
 	}
 
@@ -272,7 +292,11 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			callback?.(null, file);
 			return file;
 		} catch (err) {
-			throw this._processError(err);
+			if (callback) {
+				callback?.(this._processError(err));
+			} else {
+				throw this._processError(err);
+			}
 		}
 	}
 
@@ -288,13 +312,18 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			const stats = new Stats(
 				fileType,
 				file.size ? +file.size : 4096,
+				undefined,
 				file.modifiedTime && new Date(file.modifiedTime).valueOf(),
 				file.createdTime && new Date(file.createdTime).valueOf()
 			);
 			callback?.(null, stats);
 			return stats;
 		} catch (err) {
-			throw this._processError(err);
+			if (callback) {
+				callback?.(this._processError(err));
+			} else {
+				throw this._processError(err);
+			}
 		}
 	}
 
