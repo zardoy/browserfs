@@ -347,50 +347,58 @@ export class BaseFileSystem extends FileSystem {
 	}
 	public async open(p: string, flag: FileFlag, mode: number, cred: Cred, callback): Promise<File> {
 		try {
-			const stats = await this.stat(p, cred);
-			switch (flag.pathExistsAction()) {
-				case ActionType.THROW_EXCEPTION:
-					throw ApiError.EEXIST(p);
-				case ActionType.TRUNCATE_FILE:
-					// NOTE: In a previous implementation, we deleted the file and
-					// re-created it. However, this created a race condition if another
-					// asynchronous request was trying to read the file, as the file
-					// would not exist for a small period of time.
-					const fd = await this.openFile(p, flag, cred);
-					if (!fd) throw new Error('BFS has reached an impossible code path; please file a bug.');
+			try {
+				const stats = await this.stat(p, cred);
+				switch (flag.pathExistsAction()) {
+					case ActionType.THROW_EXCEPTION:
+						throw ApiError.EEXIST(p);
+					case ActionType.TRUNCATE_FILE:
+						// NOTE: In a previous implementation, we deleted the file and
+						// re-created it. However, this created a race condition if another
+						// asynchronous request was trying to read the file, as the file
+						// would not exist for a small period of time.
+						const fd = await this.openFile(p, flag, cred);
+						if (!fd) throw new Error('BFS has reached an impossible code path; please file a bug.');
 
-					await fd.truncate(0);
-					await fd.sync();
-					callback?.(null, fd);
-					return fd;
-				case ActionType.NOP:
-					const r = this.openFile(p, flag, cred);
-					r.then(r => {
-						callback?.(null, r);
-					});
-					return r;
-				default:
-					throw new ApiError(ErrorCode.EINVAL, 'Invalid FileFlag object.');
+						await fd.truncate(0);
+						await fd.sync();
+						callback?.(null, fd);
+						return fd;
+					case ActionType.NOP:
+						const r = this.openFile(p, flag, cred);
+						r.then(r => {
+							callback?.(null, r);
+						});
+						return r;
+					default:
+						throw new ApiError(ErrorCode.EINVAL, 'Invalid FileFlag object.');
+				}
+				// File exists.
+			} catch (e) {
+				// File does not exist.
+				switch (flag.pathNotExistsAction()) {
+					case ActionType.CREATE_FILE:
+						// Ensure parent exists.
+						const parentStats = await this.stat(path.dirname(p), cred);
+						if (parentStats && !parentStats.isDirectory()) {
+							throw ApiError.ENOTDIR(path.dirname(p));
+						}
+						const file = this.createFile(p, flag, mode, cred);
+						file.then(file => {
+							callback?.(null, file);
+						});
+						return file;
+					case ActionType.THROW_EXCEPTION:
+						throw ApiError.ENOENT(p);
+					default:
+						throw new ApiError(ErrorCode.EINVAL, 'Invalid FileFlag object.');
+				}
 			}
-			// File exists.
-		} catch (e) {
-			// File does not exist.
-			switch (flag.pathNotExistsAction()) {
-				case ActionType.CREATE_FILE:
-					// Ensure parent exists.
-					const parentStats = await this.stat(path.dirname(p), cred);
-					if (parentStats && !parentStats.isDirectory()) {
-						throw ApiError.ENOTDIR(path.dirname(p));
-					}
-					const file = this.createFile(p, flag, mode, cred);
-					file.then(file => {
-						callback?.(null, file);
-					});
-					return file;
-				case ActionType.THROW_EXCEPTION:
-					throw ApiError.ENOENT(p);
-				default:
-					throw new ApiError(ErrorCode.EINVAL, 'Invalid FileFlag object.');
+		} catch (err) {
+			if (callback) {
+				callback(err);
+			} else {
+				throw err;
 			}
 		}
 	}

@@ -57,6 +57,8 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	_readdirTimes = 0;
 	isReadonly = false;
 
+	savingFiles = [] as string[];
+
 	_isRoot(path: string) {
 		return path === '/' || path === '';
 	}
@@ -145,8 +147,20 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	}
 
 	async _syncFile(path, data, callback) {
+		// todo workaround
+		if (this.savingFiles.includes(path)) {
+			console.debug('[google drive] Skipping saving file because already saving', path);
+			return;
+		}
+		this.savingFiles.push(path);
+		let fileExists = true;
+		try {
+			await this._getFileId(path);
+		} catch (err) {
+			fileExists = false;
+		}
 		// skip empty data (wipe file)
-		if (data.length === 0) {
+		if (fileExists && data.length === 0) {
 			console.debug('[google drive] Skipping saving file because empty', path);
 			return;
 		}
@@ -205,6 +219,8 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 			if (!res.ok) throw new Error('Failed to upload file');
 		} catch (err) {
 			throw this._processError(err);
+		} finally {
+			this.savingFiles = this.savingFiles.filter(f => f !== path);
 		}
 	}
 
@@ -376,5 +392,7 @@ export class GoogleDriveFile extends PreloadFile<GoogleDriveFileSystem> implemen
 		this.resetDirty();
 	}
 
-	public async close(): Promise<void> {}
+	public async close(): Promise<void> {
+		this.sync();
+	}
 }

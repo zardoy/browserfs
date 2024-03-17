@@ -215,7 +215,7 @@ export default class PreloadFile<T extends FileSystem> extends BaseFile {
 	 */
 	public async write(buffer: Buffer, offset: number, length: number, position: number, callback): Promise<number> {
 		const r = this.writeSync(buffer, offset, length, position);
-		callback?.(null, r, buffer);
+		// callback?.(null, r, buffer);
 		this.sync(); // as i understand browserfs normally does save content not only on write but on close() instead, which can be too late for us
 		return r;
 	}
