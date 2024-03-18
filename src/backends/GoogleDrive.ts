@@ -48,6 +48,8 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 		return { ...super.metadata, name: GoogleDriveFileSystem.Name };
 	}
 
+	rootDirId = 'root';
+
 	READDIR_MAX_FILES_LIMIT = 1000;
 	READDIR_FIELDS = ['id', 'name', 'mimeType', 'modifiedTime', 'createdTime', 'size'];
 	READDIR_OPERATIONS_LIMIT = 30;
@@ -64,7 +66,7 @@ export class GoogleDriveFileSystem extends BaseFileSystem {
 	}
 	_getExistingFileId(path: string) {
 		if (this._isRoot(path)) {
-			return 'root';
+			return this.rootDirId;
 		}
 		const parentPath = this._getParentPath(path);
 		const parent = this.dirFilesMap[parentPath];
